@@ -1,3 +1,4 @@
+<!-- pages/index.vue -->
 <template>
   <div class="container mx-auto p-4">
     <h1 class="text-2xl font-bold mb-6">Image Renaming Tool</h1>
@@ -9,7 +10,7 @@
                     status.includes('Error') ? 'bg-red-100' : 'bg-blue-100']">
         {{ status }}
       </div>
- 
+
       <!-- File Selection -->
       <div class="space-y-4">
         <div>
@@ -22,7 +23,7 @@
             {{ images.length }} images selected
           </span>
         </div>
- 
+
         <div>
           <input type="file"
                  accept=".csv"
@@ -34,13 +35,14 @@
                         file:text-blue-700 hover:file:bg-blue-100" />
         </div>
       </div>
- 
+
       <!-- CSV Column Selection -->
       <div v-if="csvData.length" class="space-y-2">
         <label class="block text-sm font-medium text-gray-700">
           Select filename column from CSV
         </label>
         <select v-model="selectedColumn"
+                @change="updatePreviewNames"
                 class="mt-1 block w-full rounded-md border-gray-300 shadow-sm 
                        focus:border-blue-500 focus:ring-blue-500">
           <option value="">Select column</option>
@@ -51,84 +53,92 @@
           </option>
         </select>
       </div>
- 
+
       <!-- Rename Button -->
-      <div>
+      <div class="space-x-4">
         <button @click="handleRename"
                 :disabled="!canRename"
                 class="bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded
                        disabled:bg-gray-300 disabled:cursor-not-allowed">
-          {{ isProcessing ? 'Processing...' : 'Rename Images' }}
+          {{ isProcessing ? 'Processing...' : 'Copy and Rename Images' }}
         </button>
       </div>
- 
+
       <!-- Image Preview -->
       <div v-if="images.length" 
-           class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
+           class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
         <div v-for="(image, index) in images"
              :key="index"
-             class="aspect-square relative rounded overflow-hidden bg-gray-100">
-          <img :src="getImageUrl(image)"
-               class="object-cover w-full h-full" />
-          <div class="absolute bottom-0 left-0 right-0 bg-black bg-opacity-50 
-                      text-white text-xs p-1 truncate">
-            {{ image.name }}
+             class="space-y-2">
+          <div class="aspect-square relative rounded overflow-hidden bg-gray-100">
+            <img :src="getImageUrl(image.file)"
+                 class="object-cover w-full h-full" />
+            <div class="absolute bottom-0 left-0 right-0 bg-black bg-opacity-50 
+                        text-white text-xs p-1">
+              <div class="truncate">Current: {{ image.file.name }}</div>
+              <div v-if="image.newName" class="truncate text-green-300">
+                New: {{ image.newName }}
+              </div>
+            </div>
+          </div>
+          <div class="text-xs text-gray-500">
+            Taken: {{ image.dateTime.toLocaleString() }}
           </div>
         </div>
       </div>
     </div>
   </div>
- </template>
- 
- <script setup>
- import { ref, computed, onUnmounted, watch } from 'vue'
- 
- const { 
+</template>
+
+<script setup lang="ts">
+import { ref, computed, onUnmounted, watch } from 'vue'
+
+const { 
   images,
   csvData,
   status,
   isProcessing,
+  selectedColumn,
   selectFolder,
   parseCSV,
-  renameImages
- } = useFileSystem()
- 
- const selectedColumn = ref('')
- 
- const csvColumns = computed(() => {
+  renameImages,
+  updatePreviewNames
+} = useFileSystem()
+
+const csvColumns = computed(() => {
   if (!csvData.value?.length) return []
   return Object.keys(csvData.value[0] || {})
- })
- 
- const canRename = computed(() => {
+})
+
+const canRename = computed(() => {
   return images.value.length > 0 && 
          csvData.value.length > 0 && 
          selectedColumn.value
- })
- 
- const imageUrls = new Map()
- 
- const getImageUrl = (file) => {
+})
+
+const imageUrls = new Map()
+
+const getImageUrl = (file: File) => {
   if (!imageUrls.has(file)) {
     const url = window.URL.createObjectURL(file)
     imageUrls.set(file, url)
   }
   return imageUrls.get(file)
- }
- 
- // Watch for changes in images to clean up unused URLs
- watch(() => images.value, (newImages, oldImages) => {
+}
+
+// Watch for changes in images to clean up unused URLs
+watch(() => images.value, (newImages, oldImages) => {
   // Clean up URLs for images that are no longer present
   imageUrls.forEach((url, file) => {
-    if (!newImages.includes(file)) {
+    if (!newImages.find(img => img.file === file)) {
       window.URL.revokeObjectURL(url)
       imageUrls.delete(file)
     }
   })
- }, { deep: true })
- 
- const handleCSVUpload = async (event) => {
-  const file = event.target.files?.[0]
+}, { deep: true })
+
+const handleCSVUpload = async (event: Event) => {
+  const file = (event.target as HTMLInputElement).files?.[0]
   if (file) {
     try {
       await parseCSV(file)
@@ -137,23 +147,23 @@
       console.error('CSV upload error:', error)
     }
   }
- }
- 
- const handleRename = async () => {
+}
+
+const handleRename = async () => {
   if (!canRename.value) return
   
   try {
-    await renameImages(selectedColumn.value)
+    await renameImages()
   } catch (error) {
     console.error('Rename error:', error)
   }
- }
- 
- // Cleanup on component unmount
- onUnmounted(() => {
+}
+
+// Cleanup on component unmount
+onUnmounted(() => {
   imageUrls.forEach(url => {
     window.URL.revokeObjectURL(url)
   })
   imageUrls.clear()
- })
- </script>
+})
+</script>

@@ -23,7 +23,8 @@ interface ImageWithMetadata {
   file: File
   dateTime: Date
   name: string
-  newName?: string  // Added for preview
+  newName?: string
+  thumbnail?: string
 }
 
 export const useFileSystem = () => {
@@ -34,6 +35,54 @@ export const useFileSystem = () => {
   const status = ref('')
   const isProcessing = ref(false)
   const selectedColumn = ref('')
+
+  const createImageThumbnail = async (file: File): Promise<string> => {
+    try {
+      const maxDimension = 400
+      
+      const url = URL.createObjectURL(file)
+      
+      const img = document.createElement('img')
+      await new Promise((resolve, reject) => {
+        img.onload = resolve
+        img.onerror = reject
+        img.src = url
+      })
+      
+      URL.revokeObjectURL(url)
+      
+      let width = img.width
+      let height = img.height
+      if (width > height) {
+        if (width > maxDimension) {
+          height = height * (maxDimension / width)
+          width = maxDimension
+        }
+      } else {
+        if (height > maxDimension) {
+          width = width * (maxDimension / height)
+          height = maxDimension
+        }
+      }
+      
+      const canvas = document.createElement('canvas')
+      canvas.width = width
+      canvas.height = height
+      
+      const ctx = canvas.getContext('2d')
+      if (!ctx) throw new Error('Could not get canvas context')
+      
+      ctx.imageSmoothingEnabled = true
+      ctx.imageSmoothingQuality = 'high'
+      
+      ctx.drawImage(img, 0, 0, width, height)
+      
+      return canvas.toDataURL('image/webp', 0.8)
+    } catch (error) {
+      console.error('Error creating thumbnail:', error)
+      return ''
+    }
+  }
 
   const updatePreviewNames = () => {
     if (!selectedColumn.value || !csvData.value.length) {
@@ -86,17 +135,20 @@ export const useFileSystem = () => {
           const file = await (fileHandle as FileSystemFileHandle).getFile()
           if (file.type.startsWith('image/')) {
             console.log('Processing image:', file.name)
-            const dateTime = await getImageDateTime(file)
+            const [dateTime, thumbnail] = await Promise.all([
+              getImageDateTime(file),
+              createImageThumbnail(file)
+            ])
             imageFiles.push({
               file,
               dateTime,
-              name: file.name
+              name: file.name,
+              thumbnail
             })
           }
         }
       }
       
-      // Sort images by dateTime
       images.value = imageFiles.sort((a, b) => a.dateTime.getTime() - b.dateTime.getTime())
       status.value = `Loaded ${images.value.length} images, sorted by capture time`
       updatePreviewNames()
@@ -144,7 +196,6 @@ export const useFileSystem = () => {
       throw new Error('Please select both folder and CSV first')
     }
 
-    // First select output folder
     if (!outputDirHandle.value) {
       const success = await selectOutputFolder()
       if (!success) return
@@ -168,13 +219,9 @@ export const useFileSystem = () => {
           if (outputDirHandle.value) {
             console.log(`Processing ${image.file.name} -> ${image.newName}`)
             
-            // Create a new file in the output directory
             const newHandle = await outputDirHandle.value.getFileHandle(image.newName, { create: true })
-            
-            // Get the original file's content
             const file = await (await dirHandle.value.getFileHandle(image.file.name)).getFile()
             
-            // Write to the new file
             const writer = await newHandle.createWritable()
             await writer.write(await file.arrayBuffer())
             await writer.close()

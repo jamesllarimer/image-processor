@@ -1,4 +1,3 @@
-<!-- pages/index.vue -->
 <template>
   <div class="container mx-auto p-4">
     <h1 class="text-2xl font-bold mb-6">Image Renaming Tool</h1>
@@ -71,8 +70,14 @@
              :key="index"
              class="space-y-2">
           <div class="aspect-square relative rounded overflow-hidden bg-gray-100">
-            <img :src="getImageUrl(image.file)"
-                 class="object-cover w-full h-full" />
+            <img v-if="image.thumbnail"
+                 :src="image.thumbnail"
+                 class="object-cover w-full h-full"
+                 :alt="image.file.name" />
+            <div v-else
+                 class="flex items-center justify-center w-full h-full text-gray-400">
+              Loading...
+            </div>
             <div class="absolute bottom-0 left-0 right-0 bg-black bg-opacity-50 
                         text-white text-xs p-1">
               <div class="truncate">Current: {{ image.file.name }}</div>
@@ -91,7 +96,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onUnmounted, watch } from 'vue'
+import { ref, computed } from 'vue'
 
 const { 
   images,
@@ -116,27 +121,6 @@ const canRename = computed(() => {
          selectedColumn.value
 })
 
-const imageUrls = new Map()
-
-const getImageUrl = (file: File) => {
-  if (!imageUrls.has(file)) {
-    const url = window.URL.createObjectURL(file)
-    imageUrls.set(file, url)
-  }
-  return imageUrls.get(file)
-}
-
-// Watch for changes in images to clean up unused URLs
-watch(() => images.value, (newImages, oldImages) => {
-  // Clean up URLs for images that are no longer present
-  imageUrls.forEach((url, file) => {
-    if (!newImages.find(img => img.file === file)) {
-      window.URL.revokeObjectURL(url)
-      imageUrls.delete(file)
-    }
-  })
-}, { deep: true })
-
 const handleCSVUpload = async (event: Event) => {
   const file = (event.target as HTMLInputElement).files?.[0]
   if (file) {
@@ -158,12 +142,4 @@ const handleRename = async () => {
     console.error('Rename error:', error)
   }
 }
-
-// Cleanup on component unmount
-onUnmounted(() => {
-  imageUrls.forEach(url => {
-    window.URL.revokeObjectURL(url)
-  })
-  imageUrls.clear()
-})
 </script>

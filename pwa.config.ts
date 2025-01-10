@@ -1,8 +1,8 @@
-import type { VitePWAOptions } from 'vite-plugin-pwa'
+// pwa.config.ts
+import { VitePWAOptions } from 'vite-plugin-pwa'
 
 export const pwaConfig: Partial<VitePWAOptions> = {
   registerType: 'autoUpdate',
-  includeAssets: ['favicon.ico'],
   manifest: {
     name: 'Image Renaming Tool',
     short_name: 'Image Rename',
@@ -11,41 +11,34 @@ export const pwaConfig: Partial<VitePWAOptions> = {
     background_color: '#ffffff',
     icons: [
       {
-        src: 'pwa-192x192.png',
+        src: '/ImageResizeLogo-192.png',
         sizes: '192x192',
         type: 'image/png'
       },
       {
-        src: 'pwa-512x512.png',
+        src: '/ImageResizeLogo-512.png',
+        sizes: '512x512',
+        type: 'image/png'
+      },
+      {
+        src: '/ImageResizeLogo-512.png',
         sizes: '512x512',
         type: 'image/png',
         purpose: 'any maskable'
       }
     ],
     display: 'standalone',
-    start_url: '/',
-    orientation: 'portrait'
+    start_url: '/'
   },
   workbox: {
-    globPatterns: ['**/*.{js,css,html,png,svg,ico}'],
-    runtimeCaching: [
-      {
-        urlPattern: /^https:\/\/fonts\.googleapis\.com\/.*/i,
-        handler: 'CacheFirst',
-        options: {
-          cacheName: 'google-fonts-cache',
-          expiration: {
-            maxEntries: 10,
-            maxAgeSeconds: 60 * 60 * 24 * 365 // 1 year
-          },
-          cacheableResponse: {
-            statuses: [0, 200]
-          }
-        }
-      }
-    ],
-    navigateFallback: null
+    navigateFallback: '/',
+    globPatterns: ['**/*.{js,css,html,png,svg,ico}']
   },
+  includeAssets: [
+    'ImageResizeLogo-192.png',
+    'ImageResizeLogo-512.png',
+    'favicon.ico'
+  ],
   devOptions: {
     enabled: true,
     type: 'module'

@@ -1,6 +1,7 @@
 <!-- app.vue -->
 <template>
   <NuxtPage />
+  <OfflineDetector />
 </template>
 
 <style>

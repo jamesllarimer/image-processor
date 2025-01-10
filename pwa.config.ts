@@ -9,24 +9,32 @@ export const pwaConfig: Partial<VitePWAOptions> = {
     description: 'A tool for batch renaming images using CSV data',
     theme_color: '#ffffff',
     background_color: '#ffffff',
-    icons: [
-      {
-        src: '/ImageResizeLogo-192.png',
-        sizes: '192x192',
-        type: 'image/png'
-      },
-      {
-        src: '/ImageResizeLogo-512.png',
-        sizes: '512x512',
-        type: 'image/png'
-      },
-      {
-        src: '/ImageResizeLogo-512.png',
-        sizes: '512x512',
-        type: 'image/png',
-        purpose: 'any maskable'
-      }
-    ],
+    "icons": [
+    {
+      "src": "/pwa-192x192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/pwa-512x512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/pwa-maskable-192x192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "maskable"
+    },
+    {
+      "src": "/pwa-maskable-512x512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ],
     display: 'standalone',
     start_url: '/'
   },

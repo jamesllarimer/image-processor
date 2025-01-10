@@ -13,13 +13,9 @@ export default defineNuxtConfig({
     '@vite-pwa/nuxt'
   ],
   pwa: pwaConfig,
-  ssr: true,
+  ssr: false, // Disable SSR
   nitro: {
-    preset: 'netlify',
-    prerender: {
-      crawlLinks: true,
-      routes: ['/']
-    }
+    preset: 'netlify'
   },
   app: {
     head: {

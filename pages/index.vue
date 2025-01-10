@@ -104,6 +104,7 @@ const {
   status,
   isProcessing,
   selectedColumn,
+  isOffline,
   selectFolder,
   parseCSV,
   renameImages,

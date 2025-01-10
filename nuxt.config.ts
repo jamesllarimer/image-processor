@@ -34,14 +34,15 @@ export default defineNuxtConfig({
     buildAssetsDir: '/_nuxt/'
   },
   nitro: {
-    prerender: {
-      routes: ['/']
+    preset: 'static',
+    output: {
+      publicDir: 'dist'
     }
   },
   experimental: {
     payloadExtraction: false
   },
   generate: {
-    fallback: true
+    fallback: 'index.html'
   }
 })

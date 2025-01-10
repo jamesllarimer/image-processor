@@ -1,7 +1,7 @@
 // composables/useFileSystem.ts
 import { ref, computed } from 'vue'
 import Papa from 'papaparse'
-import { parse as parseExif } from 'exifr'
+import exifr from 'exifr'
 
 // Add IndexedDB support for storing handles
 const DB_NAME = 'ImageRenameApp'
@@ -241,7 +241,7 @@ export const useFileSystem = () => {
 
   const getImageDateTime = async (file: File): Promise<Date> => {
     try {
-      const exifData = await parseExif(file, ['DateTimeOriginal', 'CreateDate'])
+      const exifData = await exifr.parse(file, ['DateTimeOriginal', 'CreateDate'])
       
       if (exifData?.DateTimeOriginal) {
         return new Date(exifData.DateTimeOriginal)

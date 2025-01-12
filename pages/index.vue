@@ -183,48 +183,31 @@ const handleRename = async () => {
 
 // PWA Installation
 const deferredPrompt = ref<any>(null)
-const canInstall = ref(false)
+const canInstall = computed(() => {
+  // Return false if app is in standalone mode (already installed)
+  if (window?.matchMedia?.('(display-mode: standalone)')?.matches) {
+    console.log('PWA Debug: App is running in standalone mode (already installed)')
+    return false
+  }
+  // Show install button if not in standalone mode
+  return true
+})
 
 onMounted(() => {
   console.log('PWA Debug: Component mounted')
-  console.log('PWA Debug: Current canInstall value:', canInstall.value)
+  console.log('PWA Debug: Is standalone:', window?.matchMedia?.('(display-mode: standalone)')?.matches)
   
-  // Check if the app is already installed
-  if (window.matchMedia('(display-mode: standalone)').matches) {
-    console.log('PWA Debug: App is already installed (running in standalone mode)')
-  }
-
-  // Listen for beforeinstallprompt
   window.addEventListener('beforeinstallprompt', (e) => {
     console.log('PWA Debug: beforeinstallprompt event fired')
-    // Prevent Chrome 67 and earlier from automatically showing the prompt
     e.preventDefault()
-    
-    // Stash the event so it can be triggered later
     deferredPrompt.value = e
     console.log('PWA Debug: Stored install prompt')
-    
-    // Update UI to show the install button
-    canInstall.value = true
-    console.log('PWA Debug: Set canInstall to true')
   })
 
-  // Listen for successful installation
   window.addEventListener('appinstalled', () => {
     console.log('PWA Debug: App was successfully installed')
-    canInstall.value = false
-    console.log('PWA Debug: Set canInstall to false after installation')
+    deferredPrompt.value = null
   })
-
-  // Add error event listener for service worker registration
-  if ('serviceWorker' in navigator) {
-    navigator.serviceWorker.ready.then(() => {
-      console.log('PWA Debug: Service Worker is ready')
-    }).catch((error) => {
-      console.log('PWA Debug: Service Worker error:', error)
-    })
-  } else {
-    console.log('PWA Debug: Service Workers are not supported in this browser')
   }
 })
 

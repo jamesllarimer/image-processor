@@ -186,44 +186,78 @@ const deferredPrompt = ref<any>(null)
 const canInstall = ref(false)
 
 onMounted(() => {
+  console.log('PWA Debug: Component mounted')
+  console.log('PWA Debug: Current canInstall value:', canInstall.value)
+  
+  // Check if the app is already installed
+  if (window.matchMedia('(display-mode: standalone)').matches) {
+    console.log('PWA Debug: App is already installed (running in standalone mode)')
+  }
+
+  // Listen for beforeinstallprompt
   window.addEventListener('beforeinstallprompt', (e) => {
+    console.log('PWA Debug: beforeinstallprompt event fired')
     // Prevent Chrome 67 and earlier from automatically showing the prompt
     e.preventDefault()
     
     // Stash the event so it can be triggered later
     deferredPrompt.value = e
+    console.log('PWA Debug: Stored install prompt')
     
     // Update UI to show the install button
     canInstall.value = true
+    console.log('PWA Debug: Set canInstall to true')
   })
 
   // Listen for successful installation
   window.addEventListener('appinstalled', () => {
-    console.log('PWA was installed')
+    console.log('PWA Debug: App was successfully installed')
     canInstall.value = false
+    console.log('PWA Debug: Set canInstall to false after installation')
   })
+
+  // Add error event listener for service worker registration
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.ready.then(() => {
+      console.log('PWA Debug: Service Worker is ready')
+    }).catch((error) => {
+      console.log('PWA Debug: Service Worker error:', error)
+    })
+  } else {
+    console.log('PWA Debug: Service Workers are not supported in this browser')
+  }
 })
 
 const installApp = async () => {
+  console.log('PWA Debug: Install button clicked')
+  console.log('PWA Debug: deferredPrompt available:', !!deferredPrompt.value)
+  
   if (!deferredPrompt.value) {
-    console.log('Installation prompt not available')
+    console.log('PWA Debug: Installation prompt not available')
     return
   }
   
-  // Show the install prompt
-  deferredPrompt.value.prompt()
-  
-  // Wait for the user to respond to the prompt
-  const choiceResult = await deferredPrompt.value.userChoice
-  
-  if (choiceResult.outcome === 'accepted') {
-    console.log('User accepted the install prompt')
-    canInstall.value = false
-  } else {
-    console.log('User dismissed the install prompt')
+  try {
+    // Show the install prompt
+    console.log('PWA Debug: Showing install prompt')
+    deferredPrompt.value.prompt()
+    
+    // Wait for the user to respond to the prompt
+    const choiceResult = await deferredPrompt.value.userChoice
+    console.log('PWA Debug: User choice result:', choiceResult)
+    
+    if (choiceResult.outcome === 'accepted') {
+      console.log('PWA Debug: User accepted the install prompt')
+      canInstall.value = false
+    } else {
+      console.log('PWA Debug: User dismissed the install prompt')
+    }
+  } catch (error) {
+    console.log('PWA Debug: Error during installation:', error)
   }
   
   // Clear the saved prompt since it can't be used again
+  console.log('PWA Debug: Clearing deferredPrompt')
   deferredPrompt.value = null
 }
 

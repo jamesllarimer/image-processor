@@ -1,7 +1,43 @@
 <template>
   <div class="container mx-auto p-4">
-    <h1 class="text-2xl font-bold mb-6">Image Renaming Tool</h1>
+    <div class="flex justify-between items-center mb-6">
+      <h1 class="text-2xl font-bold">Image Renaming Tool</h1>
+      <button v-if="canInstall"
+              @click="installApp"
+              class="bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded">
+        Install App
+      </button>
+    </div>
     
+    <div class="bg-gray-50 p-4 rounded-lg mb-6 text-gray-700">
+      <h2 class="font-semibold mb-2">How to Use This Tool</h2>
+      <ol class="list-decimal list-inside space-y-2">
+        <li>First, have your Soldiers fill out their information in an Excel spreadsheet with columns for:
+          <span class="text-gray-600 ml-4">Rank, First Name, Last Name, Company, Battalion, Brigade, Division</span>
+        </li>
+        <li>Take photos of the Soldiers in the same order as they appear in your spreadsheet</li>
+        <li>Export your Excel sheet as a CSV file</li>
+        <li>Click "Select Image Folder" to choose the folder containing your photos</li>
+        <li>Upload your CSV file using the file input below</li>
+        <li>Select the column from your CSV that contains the complete filename</li>
+        <li>Review the preview of how your files will be renamed</li>
+        <li>Click "Copy and Rename Images" to process all files</li>
+      </ol>
+      <p class="mt-4 text-sm text-gray-600">This tool helps photographers to bulk rename photos by matching chronologically taken photos with Soldier information from a CSV file.</p>
+      <div class="mt-2 text-sm bg-yellow-50 p-3 rounded border border-yellow-200">
+        <strong>Note:</strong> The template's filename structure (Rank_LastName_FirstName_Company_...) is just an example. You can use any filename structure you prefer in your CSV - just make sure you have a column containing your desired filenames. The app will match photos to filenames in the order they were taken.
+      </div>
+      <div class="mt-4">
+        <button @click="downloadTemplate" 
+                class="inline-flex items-center px-4 py-2 text-sm font-medium text-blue-700 bg-blue-100 border border-transparent rounded-md hover:bg-blue-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
+          <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+          </svg>
+          Download Template CSV
+        </button>
+      </div>
+    </div>
+
     <div class="space-y-6">
       <!-- Status Display -->
       <div v-if="status" 
@@ -96,7 +132,9 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted } from 'vue'
+import Papa from 'papaparse'
+import { useFileSystem } from '../composables/useFileSystem'
 
 const { 
   images,
@@ -104,7 +142,6 @@ const {
   status,
   isProcessing,
   selectedColumn,
-  isOffline,
   selectFolder,
   parseCSV,
   renameImages,
@@ -142,5 +179,84 @@ const handleRename = async () => {
   } catch (error) {
     console.error('Rename error:', error)
   }
+}
+
+// PWA Installation
+const deferredPrompt = ref<any>(null)
+const canInstall = ref(false)
+
+onMounted(() => {
+  window.addEventListener('beforeinstallprompt', (e) => {
+    // Prevent Chrome 67 and earlier from automatically showing the prompt
+    e.preventDefault()
+    
+    // Stash the event so it can be triggered later
+    deferredPrompt.value = e
+    
+    // Update UI to show the install button
+    canInstall.value = true
+  })
+
+  // Listen for successful installation
+  window.addEventListener('appinstalled', () => {
+    console.log('PWA was installed')
+    canInstall.value = false
+  })
+})
+
+const installApp = async () => {
+  if (!deferredPrompt.value) {
+    console.log('Installation prompt not available')
+    return
+  }
+  
+  // Show the install prompt
+  deferredPrompt.value.prompt()
+  
+  // Wait for the user to respond to the prompt
+  const choiceResult = await deferredPrompt.value.userChoice
+  
+  if (choiceResult.outcome === 'accepted') {
+    console.log('User accepted the install prompt')
+    canInstall.value = false
+  } else {
+    console.log('User dismissed the install prompt')
+  }
+  
+  // Clear the saved prompt since it can't be used again
+  deferredPrompt.value = null
+}
+
+const downloadTemplate = () => {
+  // Create template data
+  const templateData = [
+    {
+      Rank: "SPC",
+      "First Name": "John",
+      "Last Name": "Doe",
+      Company: "HHC",
+      Battalion: "1-2",
+      Brigade: "1ABCT",
+      Division: "1ID",
+      "Generated Filename": "SPC_Doe_John_HHC_1-2_1ABCT_1ID"
+    }
+  ]
+
+  // Convert to CSV
+  const csv = Papa.unparse(templateData)
+  
+  // Create blob and download
+  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' })
+  const link = document.createElement('a')
+  const url = URL.createObjectURL(blob)
+  
+  link.setAttribute('href', url)
+  link.setAttribute('download', 'hero_photos_template.csv')
+  link.style.visibility = 'hidden'
+  
+  document.body.appendChild(link)
+  link.click()
+  document.body.removeChild(link)
+  URL.revokeObjectURL(url)
 }
 </script>

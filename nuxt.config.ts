@@ -3,17 +3,21 @@ import { pwaConfig } from './pwa.config'
 
 export default defineNuxtConfig({
   css: ['~/assets/css/main.css'],
+
   postcss: {
     plugins: {
       tailwindcss: {},
       autoprefixer: {},
     },
   },
+
   modules: [
     '@vite-pwa/nuxt'
   ],
+
   pwa: pwaConfig,
   ssr: false,
+
   app: {
     head: {
       title: 'Image Renaming Tool',
@@ -33,16 +37,21 @@ export default defineNuxtConfig({
     },
     buildAssetsDir: '/_nuxt/'
   },
+
   nitro: {
     preset: 'static',
     output: {
       publicDir: 'dist'
     }
   },
+
   experimental: {
     payloadExtraction: false
   },
+
   generate: {
     fallback: 'index.html'
-  }
+  },
+
+  compatibilityDate: '2025-01-12'
 })

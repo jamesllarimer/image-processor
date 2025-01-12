@@ -32,7 +32,8 @@ export default defineNuxtConfig({
       ],
       link: [
         { rel: 'icon', href: '/favicon.ico' },
-        { rel: 'apple-touch-icon', href: '/pwa-192x192.png' }
+        { rel: 'apple-touch-icon', href: '/pwa-192x192.png' },
+        { rel: 'manifest', href: '/manifest.webmanifest' }  
       ]
     },
     buildAssetsDir: '/_nuxt/'
@@ -51,7 +52,5 @@ export default defineNuxtConfig({
 
   generate: {
     fallback: 'index.html'
-  },
-
-  compatibilityDate: '2025-01-12'
+  }
 })

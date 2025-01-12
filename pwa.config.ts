@@ -1,10 +1,11 @@
-// pwa.config.ts
 import type { VitePWAOptions } from 'vite-plugin-pwa'
 
 export const pwaConfig: Partial<VitePWAOptions> = {
   registerType: 'autoUpdate',
-  includeAssets: ['favicon.ico'],
+  injectRegister: 'auto',
+  includeManifestIcons: true,
   manifest: {
+    id: '/',
     name: 'Image Renaming Tool',
     short_name: 'Image Rename',
     description: 'A tool for batch renaming images using CSV data',
@@ -16,47 +17,29 @@ export const pwaConfig: Partial<VitePWAOptions> = {
     start_url: '/',
     icons: [
       {
-        src: '/pwa-192x192.png',
+        src: 'pwa-192x192.png',
         sizes: '192x192',
         type: 'image/png'
       },
       {
-        src: '/pwa-512x512.png',
+        src: 'pwa-512x512.png',
         sizes: '512x512',
         type: 'image/png'
       },
       {
-        src: '/pwa-512x512.png',
+        src: 'pwa-512x512.png',
         sizes: '512x512',
         type: 'image/png',
-        purpose: 'any maskable'
+        purpose: 'maskable'
       }
     ]
   },
   workbox: {
-    navigateFallback: '/',
     globPatterns: ['**/*.{js,css,html,png,svg,ico}'],
-    cleanupOutdatedCaches: true,
-    runtimeCaching: [
-      {
-        urlPattern: /^https:\/\/fonts\.googleapis\.com\/.*/i,
-        handler: 'CacheFirst',
-        options: {
-          cacheName: 'google-fonts-cache',
-          expiration: {
-            maxEntries: 10,
-            maxAgeSeconds: 60 * 60 * 24 * 365 // <== 365 days
-          },
-          cacheableResponse: {
-            statuses: [0, 200]
-          }
-        }
-      }
-    ]
+    cleanupOutdatedCaches: true
   },
   devOptions: {
     enabled: true,
     type: 'module'
-  },
-  strategies: 'generateSW'
+  }
 }

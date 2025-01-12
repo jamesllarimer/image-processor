@@ -193,21 +193,33 @@ const canInstall = computed(() => {
   return true
 })
 
-onMounted(() => {
-  console.log('PWA Debug: Component mounted')
-  console.log('PWA Debug: Is standalone:', window?.matchMedia?.('(display-mode: standalone)')?.matches)
+  onMounted(() => {
+  // Check for manifest in various ways
+  console.log('PWA Debug: Checking manifest...')
   
-  window.addEventListener('beforeinstallprompt', (e) => {
-    console.log('PWA Debug: beforeinstallprompt event fired')
-    e.preventDefault()
-    deferredPrompt.value = e
-    console.log('PWA Debug: Stored install prompt')
-  })
-
-  window.addEventListener('appinstalled', () => {
-    console.log('PWA Debug: App was successfully installed')
-    deferredPrompt.value = null
-  })
+  // Check link tag
+  const manifestLink = document.querySelector('link[rel="manifest"]')
+  console.log('PWA Debug: Manifest link:', (manifestLink as HTMLLinkElement)?.href)
+  
+  // Try to fetch the manifest
+  if ((manifestLink as HTMLLinkElement)?.href) {
+    fetch((manifestLink as HTMLLinkElement).href)
+      .then(response => response.json())
+      .then(data => {
+        console.log('PWA Debug: Manifest content:', data)
+      })
+      .catch(error => {
+        console.log('PWA Debug: Error fetching manifest:', error)
+      })
+  }
+  
+  // Check if the app is installable
+  if ('getInstalledRelatedApps' in navigator) {
+    // @ts-ignore (TypeScript might not know about this API)
+    navigator.getInstalledRelatedApps().then(apps => {
+      console.log('PWA Debug: Related apps:', apps)
+    })
+  }
 })
 
 const installApp = async () => {

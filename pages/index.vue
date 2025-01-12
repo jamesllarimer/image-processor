@@ -208,30 +208,22 @@ onMounted(() => {
     console.log('PWA Debug: App was successfully installed')
     deferredPrompt.value = null
   })
-  }
 })
 
 const installApp = async () => {
   console.log('PWA Debug: Install button clicked')
-  console.log('PWA Debug: deferredPrompt available:', !!deferredPrompt.value)
-  
   if (!deferredPrompt.value) {
     console.log('PWA Debug: Installation prompt not available')
     return
   }
   
   try {
-    // Show the install prompt
-    console.log('PWA Debug: Showing install prompt')
     deferredPrompt.value.prompt()
-    
-    // Wait for the user to respond to the prompt
     const choiceResult = await deferredPrompt.value.userChoice
     console.log('PWA Debug: User choice result:', choiceResult)
     
     if (choiceResult.outcome === 'accepted') {
       console.log('PWA Debug: User accepted the install prompt')
-      canInstall.value = false
     } else {
       console.log('PWA Debug: User dismissed the install prompt')
     }
@@ -239,8 +231,6 @@ const installApp = async () => {
     console.log('PWA Debug: Error during installation:', error)
   }
   
-  // Clear the saved prompt since it can't be used again
-  console.log('PWA Debug: Clearing deferredPrompt')
   deferredPrompt.value = null
 }
 

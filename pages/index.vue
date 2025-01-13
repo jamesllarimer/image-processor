@@ -1,14 +1,14 @@
 <template>
   <div class="container mx-auto p-4">
     <h1 class="text-2xl font-bold mb-6">Image Renaming Tool</h1>
-    
+    <p class="mt-4 text-sm text-gray-600">This tool helps photographers to bulk rename photos by matching chronologically taken photos with service member information from a CSV file.</p>
     <div class="bg-gray-50 p-4 rounded-lg mb-6 text-gray-700">
       <h2 class="font-semibold mb-2">How to Use This Tool</h2>
       <ol class="list-decimal list-inside space-y-2">
-        <li>First, have your Soldiers fill out their information in an Excel spreadsheet with columns for:
+        <li>First, have your service members fill out their information in an Excel spreadsheet with columns for:
           <span class="text-gray-600 ml-4">Rank, First Name, Last Name, Company, Battalion, Brigade, Division</span>
         </li>
-        <li>Take photos of the Soldiers in the same order as they appear in your spreadsheet</li>
+        <li>Take photos of the service members in the same order as they appear in your spreadsheet</li>
         <li>Export your Excel sheet as a CSV file</li>
         <li>Click "Select Image Folder" to choose the folder containing your photos</li>
         <li>Upload your CSV file using the file input below</li>
@@ -16,7 +16,6 @@
         <li>Review the preview of how your files will be renamed</li>
         <li>Click "Copy and Rename Images" to process all files</li>
       </ol>
-      <p class="mt-4 text-sm text-gray-600">This tool helps photographers to bulk rename photos by matching chronologically taken photos with Soldier information from a CSV file.</p>
       <div class="mt-2 text-sm bg-yellow-50 p-3 rounded border border-yellow-200">
         <strong>Note:</strong> The template's filename structure (Rank_LastName_FirstName_Company_...) is just an example. You can use any filename structure you prefer in your CSV - just make sure you have a column containing your desired filenames. The app will match photos to filenames in the order they were taken.
       </div>

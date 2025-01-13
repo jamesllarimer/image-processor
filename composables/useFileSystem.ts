@@ -1,16 +1,7 @@
 // composables/useFileSystem.ts
 import { ref, computed } from 'vue'
 import Papa from 'papaparse'
-import exifr from 'exifr'
-
-// Add IndexedDB support for storing handles
-const DB_NAME = 'ImageRenameApp'
-const STORE_NAME = 'fileHandles'
-
-interface StoredHandle {
-  type: 'input' | 'output'
-  handle: FileSystemDirectoryHandle
-}
+import { parse as parseExif } from 'exifr'
 
 declare global {
   interface Window {
@@ -36,36 +27,36 @@ interface ImageWithMetadata {
   thumbnail?: string
 }
 
-const openDb = (): Promise<IDBDatabase> => {
-  return new Promise((resolve, reject) => {
-    const request = indexedDB.open(DB_NAME, 1)
-    
-    request.onerror = () => reject(request.error)
-    request.onsuccess = () => resolve(request.result)
-    
-    request.onupgradeneeded = (event) => {
-      const db = (event.target as IDBOpenDBRequest).result
-      if (!db.objectStoreNames.contains(STORE_NAME)) {
-        db.createObjectStore(STORE_NAME, { keyPath: 'type' })
-      }
-    }
-  })
-}
+// Add supported RAW formats
+const SUPPORTED_FORMATS = new Set([
+  // Common image formats
+  'image/jpeg',
+  'image/png',
+  'image/webp',
+  // RAW formats
+  'image/arw',              // Sony
+  'image/x-sony-arw',       // Alternative MIME for Sony
+  'image/cr2',              // Canon
+  'image/x-canon-cr2',      // Alternative MIME for Canon
+  'image/nef',              // Nikon
+  'image/x-nikon-nef',      // Alternative MIME for Nikon
+  'image/raf',              // Fujifilm
+  'image/x-fuji-raf',       // Alternative MIME for Fujifilm
+  'image/raw',              // Generic RAW
+  'image/x-raw'             // Alternative MIME for generic RAW
+])
 
-const storeHandle = async (type: 'input' | 'output', handle: FileSystemDirectoryHandle) => {
-  const db = await openDb()
-  const tx = db.transaction(STORE_NAME, 'readwrite')
-  const store = tx.objectStore(STORE_NAME)
-  await store.put({ type, handle })
-}
-
-const getStoredHandle = async (type: 'input' | 'output'): Promise<FileSystemDirectoryHandle | null> => {
-  const db = await openDb()
-  const tx = db.transaction(STORE_NAME, 'readonly')
-  const store = tx.objectStore(STORE_NAME)
-  const handle = await store.get(type)
-  return handle?.handle || null
-}
+// Add RAW file extensions
+const RAW_EXTENSIONS = new Set([
+  'arw',  // Sony
+  'cr2',  // Canon
+  'nef',  // Nikon
+  'raf',  // Fujifilm
+  'raw',  // Generic
+  'rw2',  // Panasonic
+  'orf',  // Olympus
+  'dng'   // Adobe Digital Negative
+])
 
 export const useFileSystem = () => {
   const images = ref<ImageWithMetadata[]>([])
@@ -75,11 +66,17 @@ export const useFileSystem = () => {
   const status = ref('')
   const isProcessing = ref(false)
   const selectedColumn = ref('')
-  const isOffline = ref(!navigator.onLine)
 
-  // Update offline status
-  window.addEventListener('online', () => isOffline.value = false)
-  window.addEventListener('offline', () => isOffline.value = true)
+  const isImageFile = (file: File): boolean => {
+    // Check by MIME type first
+    if (SUPPORTED_FORMATS.has(file.type)) {
+      return true
+    }
+    
+    // If MIME type check fails, check by extension
+    const extension = file.name.split('.').pop()?.toLowerCase()
+    return extension ? RAW_EXTENSIONS.has(extension) : false
+  }
 
   const createImageThumbnail = async (file: File): Promise<string> => {
     try {
@@ -129,100 +126,6 @@ export const useFileSystem = () => {
     }
   }
 
-  const loadStoredHandles = async () => {
-    try {
-      // Try to load stored handles
-      const storedInputHandle = await getStoredHandle('input')
-      const storedOutputHandle = await getStoredHandle('output')
-
-      if (storedInputHandle) {
-        // Verify we still have permission
-        const permission = await storedInputHandle.requestPermission({ mode: 'read' })
-        if (permission === 'granted') {
-          dirHandle.value = storedInputHandle
-          await loadImagesFromHandle(storedInputHandle)
-        }
-      }
-
-      if (storedOutputHandle) {
-        const permission = await storedOutputHandle.requestPermission({ mode: 'readwrite' })
-        if (permission === 'granted') {
-          outputDirHandle.value = storedOutputHandle
-        }
-      }
-    } catch (error) {
-      console.error('Error loading stored handles:', error)
-    }
-  }
-
-  const loadImagesFromHandle = async (handle: FileSystemDirectoryHandle) => {
-    const imageFiles: ImageWithMetadata[] = []
-    
-    status.value = 'Reading images from folder...'
-    for await (const [name, fileHandle] of handle.entries()) {
-      if (fileHandle.kind === 'file') {
-        const file = await (fileHandle as FileSystemFileHandle).getFile()
-        if (file.type.startsWith('image/')) {
-          console.log('Processing image:', file.name)
-          const [dateTime, thumbnail] = await Promise.all([
-            getImageDateTime(file),
-            createImageThumbnail(file)
-          ])
-          imageFiles.push({
-            file,
-            dateTime,
-            name: file.name,
-            thumbnail
-          })
-        }
-      }
-    }
-    
-    images.value = imageFiles.sort((a, b) => a.dateTime.getTime() - b.dateTime.getTime())
-    status.value = `Loaded ${images.value.length} images, sorted by capture time`
-    updatePreviewNames()
-  }
-
-  const selectFolder = async () => {
-    try {
-      if (!('showDirectoryPicker' in window)) {
-        status.value = 'File System Access API not supported in this browser'
-        return
-      }
-      
-      status.value = 'Selecting input folder...'
-      const handle = await window.showDirectoryPicker()
-      dirHandle.value = handle
-      
-      // Store the handle for offline access
-      await storeHandle('input', handle)
-      
-      await loadImagesFromHandle(handle)
-    } catch (error) {
-      status.value = `Error: ${error instanceof Error ? error.message : 'Unknown error'}`
-      console.error('Folder selection error:', error)
-    }
-  }
-
-  const selectOutputFolder = async () => {
-    try {
-      status.value = 'Selecting output folder...'
-      const handle = await window.showDirectoryPicker()
-      outputDirHandle.value = handle
-      
-      // Store the handle for offline access
-      await storeHandle('output', handle)
-      
-      status.value = 'Output folder selected'
-      return true
-    } catch (error) {
-      status.value = `Error selecting output folder: ${error instanceof Error ? error.message : 'Unknown error'}`
-      console.error('Output folder selection error:', error)
-      return false
-    }
-  }
-
-  // Rest of the code remains the same...
   const updatePreviewNames = () => {
     if (!selectedColumn.value || !csvData.value.length) {
       images.value = images.value.map(img => ({ ...img, newName: undefined }))
@@ -241,7 +144,7 @@ export const useFileSystem = () => {
 
   const getImageDateTime = async (file: File): Promise<Date> => {
     try {
-      const exifData = await exifr.parse(file, ['DateTimeOriginal', 'CreateDate'])
+      const exifData = await parseExif(file, ['DateTimeOriginal', 'CreateDate'])
       
       if (exifData?.DateTimeOriginal) {
         return new Date(exifData.DateTimeOriginal)
@@ -253,6 +156,61 @@ export const useFileSystem = () => {
     } catch (error) {
       console.warn('Error reading EXIF data for file:', file.name, error)
       return new Date(file.lastModified)
+    }
+  }
+
+  const selectFolder = async () => {
+    try {
+      if (!('showDirectoryPicker' in window)) {
+        status.value = 'File System Access API not supported in this browser'
+        return
+      }
+      
+      status.value = 'Selecting input folder...'
+      const handle = await window.showDirectoryPicker()
+      dirHandle.value = handle
+      const imageFiles: ImageWithMetadata[] = []
+      
+      status.value = 'Reading images from folder...'
+      for await (const [name, fileHandle] of handle.entries()) {
+        if (fileHandle.kind === 'file') {
+          const file = await (fileHandle as FileSystemFileHandle).getFile()
+          if (isImageFile(file)) {
+            console.log('Processing image:', file.name)
+            const [dateTime, thumbnail] = await Promise.all([
+              getImageDateTime(file),
+              createImageThumbnail(file)
+            ])
+            imageFiles.push({
+              file,
+              dateTime,
+              name: file.name,
+              thumbnail
+            })
+          }
+        }
+      }
+      
+      images.value = imageFiles.sort((a, b) => a.dateTime.getTime() - b.dateTime.getTime())
+      status.value = `Loaded ${images.value.length} images, sorted by capture time`
+      updatePreviewNames()
+    } catch (error) {
+      status.value = `Error: ${error instanceof Error ? error.message : 'Unknown error'}`
+      console.error('Folder selection error:', error)
+    }
+  }
+
+  const selectOutputFolder = async () => {
+    try {
+      status.value = 'Selecting output folder...'
+      const handle = await window.showDirectoryPicker()
+      outputDirHandle.value = handle
+      status.value = 'Output folder selected'
+      return true
+    } catch (error) {
+      status.value = `Error selecting output folder: ${error instanceof Error ? error.message : 'Unknown error'}`
+      console.error('Output folder selection error:', error)
+      return false
     }
   }
 
@@ -328,18 +286,12 @@ export const useFileSystem = () => {
     }
   }
 
-  // Initialize by loading stored handles
-  onMounted(() => {
-    loadStoredHandles()
-  })
-
   return {
     images,
     csvData,
     status,
     isProcessing,
     selectedColumn,
-    isOffline,
     selectFolder,
     parseCSV,
     renameImages,

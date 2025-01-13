@@ -1,13 +1,6 @@
 <template>
   <div class="container mx-auto p-4">
-    <div class="flex justify-between items-center mb-6">
-      <h1 class="text-2xl font-bold">Image Renaming Tool</h1>
-      <button v-if="canInstall"
-              @click="installApp"
-              class="bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded">
-        Install App
-      </button>
-    </div>
+    <h1 class="text-2xl font-bold mb-6">Image Renaming Tool</h1>
     
     <div class="bg-gray-50 p-4 rounded-lg mb-6 text-gray-700">
       <h2 class="font-semibold mb-2">How to Use This Tool</h2>
@@ -44,6 +37,28 @@
            :class="['p-4 rounded', 
                     status.includes('Error') ? 'bg-red-100' : 'bg-blue-100']">
         {{ status }}
+      </div>
+
+      <!-- Count Mismatch Alert -->
+      <div v-if="images.length && csvData.length && images.length !== csvData.length"
+           class="bg-yellow-50 border-l-4 border-yellow-400 p-4">
+        <div class="flex">
+          <div class="flex-shrink-0">
+            <svg class="h-5 w-5 text-yellow-400" viewBox="0 0 20 20" fill="currentColor">
+              <path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd" />
+            </svg>
+          </div>
+          <div class="ml-3">
+            <h3 class="text-sm font-medium text-yellow-800">
+              Warning: Count Mismatch
+            </h3>
+            <div class="mt-2 text-sm text-yellow-700">
+              The number of images ({{ images.length }}) doesn't match the number of CSV records ({{ csvData.length }}). 
+              This may result in incorrect image renaming. Please ensure your CSV has the same number 
+              of entries as your images, and they are in the correct order.
+            </div>
+          </div>
+        </div>
       </div>
 
       <!-- File Selection -->
@@ -93,8 +108,13 @@
       <div class="space-x-4">
         <button @click="handleRename"
                 :disabled="!canRename"
-                class="bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded
-                       disabled:bg-gray-300 disabled:cursor-not-allowed">
+                :class="[
+                  'px-4 py-2 rounded disabled:bg-gray-300 disabled:cursor-not-allowed',
+                  images.length && csvData.length && images.length !== csvData.length
+                    ? 'bg-yellow-500 hover:bg-yellow-600' 
+                    : 'bg-green-500 hover:bg-green-600',
+                  'text-white'
+                ]">
           {{ isProcessing ? 'Processing...' : 'Copy and Rename Images' }}
         </button>
       </div>
@@ -132,7 +152,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed } from 'vue'
 import Papa from 'papaparse'
 import { useFileSystem } from '../composables/useFileSystem'
 
@@ -179,71 +199,6 @@ const handleRename = async () => {
   } catch (error) {
     console.error('Rename error:', error)
   }
-}
-
-// PWA Installation
-const deferredPrompt = ref<any>(null)
-const canInstall = computed(() => {
-  // Return false if app is in standalone mode (already installed)
-  if (window?.matchMedia?.('(display-mode: standalone)')?.matches) {
-    console.log('PWA Debug: App is running in standalone mode (already installed)')
-    return false
-  }
-  // Show install button if not in standalone mode
-  return true
-})
-
-  onMounted(() => {
-  // Check for manifest in various ways
-  console.log('PWA Debug: Checking manifest...')
-  
-  // Check link tag
-  const manifestLink = document.querySelector('link[rel="manifest"]')
-  console.log('PWA Debug: Manifest link:', (manifestLink as HTMLLinkElement)?.href)
-  
-  // Try to fetch the manifest
-  if ((manifestLink as HTMLLinkElement)?.href) {
-    fetch((manifestLink as HTMLLinkElement).href)
-      .then(response => response.json())
-      .then(data => {
-        console.log('PWA Debug: Manifest content:', data)
-      })
-      .catch(error => {
-        console.log('PWA Debug: Error fetching manifest:', error)
-      })
-  }
-  
-  // Check if the app is installable
-  if ('getInstalledRelatedApps' in navigator) {
-    // @ts-ignore (TypeScript might not know about this API)
-    navigator.getInstalledRelatedApps().then(apps => {
-      console.log('PWA Debug: Related apps:', apps)
-    })
-  }
-})
-
-const installApp = async () => {
-  console.log('PWA Debug: Install button clicked')
-  if (!deferredPrompt.value) {
-    console.log('PWA Debug: Installation prompt not available')
-    return
-  }
-  
-  try {
-    deferredPrompt.value.prompt()
-    const choiceResult = await deferredPrompt.value.userChoice
-    console.log('PWA Debug: User choice result:', choiceResult)
-    
-    if (choiceResult.outcome === 'accepted') {
-      console.log('PWA Debug: User accepted the install prompt')
-    } else {
-      console.log('PWA Debug: User dismissed the install prompt')
-    }
-  } catch (error) {
-    console.log('PWA Debug: Error during installation:', error)
-  }
-  
-  deferredPrompt.value = null
 }
 
 const downloadTemplate = () => {

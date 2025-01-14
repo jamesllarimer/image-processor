@@ -1,14 +1,14 @@
 <template>
   <div class="container mx-auto p-4">
     <h1 class="text-2xl font-bold mb-6">Image Renaming Tool</h1>
-    <p class="mt-4 text-sm text-gray-600">This tool helps photographers to bulk rename photos by matching chronologically taken photos with service member information from a CSV file.</p>
+    
     <div class="bg-gray-50 p-4 rounded-lg mb-6 text-gray-700">
       <h2 class="font-semibold mb-2">How to Use This Tool</h2>
       <ol class="list-decimal list-inside space-y-2">
-        <li>First, have your service members fill out their information in an Excel spreadsheet with columns for:
+        <li>First, have your Soldiers fill out their information in an Excel spreadsheet with columns for:
           <span class="text-gray-600 ml-4">Rank, First Name, Last Name, Company, Battalion, Brigade, Division</span>
         </li>
-        <li>Take photos of the service members in the same order as they appear in your spreadsheet</li>
+        <li>Take photos of the Soldiers in the same order as they appear in your spreadsheet</li>
         <li>Export your Excel sheet as a CSV file</li>
         <li>Click "Select Image Folder" to choose the folder containing your photos</li>
         <li>Upload your CSV file using the file input below</li>
@@ -16,8 +16,12 @@
         <li>Review the preview of how your files will be renamed</li>
         <li>Click "Copy and Rename Images" to process all files</li>
       </ol>
+      <p class="mt-4 text-sm text-gray-600">This tool helps photographers to bulk rename photos by matching chronologically taken photos with Soldier information from a CSV file.</p>
       <div class="mt-2 text-sm bg-yellow-50 p-3 rounded border border-yellow-200">
         <strong>Note:</strong> The template's filename structure (Rank_LastName_FirstName_Company_...) is just an example. You can use any filename structure you prefer in your CSV - just make sure you have a column containing your desired filenames. The app will match photos to filenames in the order they were taken.
+      </div>
+      <div class="mt-2 text-sm bg-blue-50 p-3 rounded border border-blue-200">
+        <strong>RAW Support:</strong> This tool supports various RAW formats including ARW (Sony), CR2 (Canon), NEF (Nikon), RAF (Fujifilm), and others. RAW files may take longer to process due to their size.
       </div>
       <div class="mt-4">
         <button @click="downloadTemplate" 
@@ -38,26 +42,13 @@
         {{ status }}
       </div>
 
-      <!-- Count Mismatch Alert -->
-      <div v-if="images.length && csvData.length && images.length !== csvData.length"
-           class="bg-yellow-50 border-l-4 border-yellow-400 p-4">
-        <div class="flex">
-          <div class="flex-shrink-0">
-            <svg class="h-5 w-5 text-yellow-400" viewBox="0 0 20 20" fill="currentColor">
-              <path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd" />
-            </svg>
-          </div>
-          <div class="ml-3">
-            <h3 class="text-sm font-medium text-yellow-800">
-              Warning: Count Mismatch
-            </h3>
-            <div class="mt-2 text-sm text-yellow-700">
-              The number of images ({{ images.length }}) doesn't match the number of CSV records ({{ csvData.length }}). 
-              This may result in incorrect image renaming. Please ensure your CSV has the same number 
-              of entries as your images, and they are in the correct order.
-            </div>
-          </div>
-        </div>
+      <!-- RAW Files Warning -->
+      <div v-if="hasRawFiles" 
+           class="p-4 rounded bg-yellow-50 border border-yellow-200">
+        <p class="text-yellow-800">
+          <strong>Note:</strong> RAW files detected. Processing these files may take longer due to their size. 
+          The preview thumbnails for RAW files are generated from embedded previews and may appear different from the final images.
+        </p>
       </div>
 
       <!-- File Selection -->
@@ -106,14 +97,9 @@
       <!-- Rename Button -->
       <div class="space-x-4">
         <button @click="handleRename"
-                :disabled="!canRename"
-                :class="[
-                  'px-4 py-2 rounded disabled:bg-gray-300 disabled:cursor-not-allowed',
-                  images.length && csvData.length && images.length !== csvData.length
-                    ? 'bg-yellow-500 hover:bg-yellow-600' 
-                    : 'bg-green-500 hover:bg-green-600',
-                  'text-white'
-                ]">
+                :disabled="!canRename || isProcessing"
+                class="bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded
+                       disabled:bg-gray-300 disabled:cursor-not-allowed">
           {{ isProcessing ? 'Processing...' : 'Copy and Rename Images' }}
         </button>
       </div>
@@ -135,7 +121,13 @@
             </div>
             <div class="absolute bottom-0 left-0 right-0 bg-black bg-opacity-50 
                         text-white text-xs p-1">
-              <div class="truncate">Current: {{ image.file.name }}</div>
+              <div class="truncate">
+                Current: {{ image.file.name }}
+                <span v-if="image.isRaw" 
+                      class="ml-1 px-1 py-0.5 bg-yellow-500 text-black rounded-sm text-xs">
+                  RAW
+                </span>
+              </div>
               <div v-if="image.newName" class="truncate text-green-300">
                 New: {{ image.newName }}
               </div>
@@ -161,6 +153,7 @@ const {
   status,
   isProcessing,
   selectedColumn,
+  hasRawFiles,
   selectFolder,
   parseCSV,
   renameImages,

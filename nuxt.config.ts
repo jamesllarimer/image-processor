@@ -52,5 +52,7 @@ export default defineNuxtConfig({
 
   generate: {
     fallback: 'index.html'
-  }
+  },
+
+  compatibilityDate: '2025-01-14'
 })

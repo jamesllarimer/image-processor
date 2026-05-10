@@ -1,182 +1,258 @@
 <template>
-  <div class="container mx-auto p-4">
-    <h1 class="text-2xl font-bold mb-6">Image Renaming Tool</h1>
-    
-    <div class="bg-gray-50 p-4 rounded-lg mb-6 text-gray-700">
-      <h2 class="font-semibold mb-2">How to Use This Tool</h2>
-      <ol class="list-decimal list-inside space-y-2">
-        <li>First, have your Soldiers fill out their information in an Excel spreadsheet with columns for:
-          <span class="text-gray-600 ml-4">Rank, First Name, Last Name, Company, Battalion, Brigade, Division</span>
-        </li>
-        <li>Take photos of the service members in the same order as they appear in your spreadsheet. <strong>Shoot in JPEG format. </strong><i>If you accidentally shoot in RAW, the tool also supports various RAW formats but it takes longer to process them and is error prone.</i></li>
-        <li>Export your Excel sheet as a CSV file</li>
-        <li>Click "Select Image Folder" to choose the folder containing your photos</li>
-        <li>Upload your CSV file using the file input below</li>
-        <li>Check the columns you want in the filename, in the order you want them</li>
-        <li>Review the preview of how your files will be renamed</li>
-        <li>Click "Copy and Rename Images" to process all files</li>
-      </ol>
-      <p class="mt-4 text-sm text-gray-600">This tool helps photographers to bulk rename photos by matching chronologically taken photos with Soldier information from a CSV file.</p>
-      <div class="mt-2 text-sm bg-yellow-50 p-3 rounded border border-yellow-200">
-        <strong>Note:</strong> After uploading your CSV, check the columns you want in the filename and set a separator (default <code>_</code>). The app assembles the name from those columns in the order you checked them, then matches photos to rows in chronological order.
-      </div>
-      <div class="mt-2 text-sm bg-blue-50 p-3 rounded border border-blue-200">
-        <strong>RAW Support:</strong> This tool supports various RAW formats including ARW (Sony), CR2 (Canon), NEF (Nikon), RAF (Fujifilm), and others. RAW files may take longer to process due to their size.
-      </div>
-      <div class="mt-4">
-        <button @click="downloadTemplate" 
-                class="inline-flex items-center px-4 py-2 text-sm font-medium text-blue-700 bg-blue-100 border border-transparent rounded-md hover:bg-blue-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
-          <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+  <div class="min-h-screen bg-army-tan dark:bg-army-black text-gray-900 dark:text-gray-100 transition-colors duration-200">
+
+    <!-- Header -->
+    <header class="sticky top-0 z-10 bg-army-tan/90 dark:bg-army-black/90 backdrop-blur border-b border-army-tan-dark dark:border-army-dark">
+      <div class="max-w-3xl mx-auto px-4 h-14 flex items-center justify-between">
+        <div class="flex items-center gap-3">
+          <!-- Army star shield icon -->
+          <svg class="w-7 h-7 text-army-gold flex-shrink-0" viewBox="0 0 24 24" fill="currentColor">
+            <path d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4zm0 4l5 2.18V11c0 3.5-2.33 6.79-5 7.93-2.67-1.14-5-4.43-5-7.93V7.18L12 5zm0 2l-3 1.35V11c0 2.1 1.4 4.07 3 4.76 1.6-.69 3-2.66 3-4.76V8.35L12 7z"/>
           </svg>
-          Download Template CSV
-        </button>
+          <span class="text-base font-bold tracking-wide uppercase">Image Rename</span>
+        </div>
+        <div class="flex items-center gap-2">
+          <button @click="showInstructions = !showInstructions"
+                  :class="showInstructions
+                    ? 'bg-army-gold text-army-black'
+                    : 'text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 border border-army-tan-dark dark:border-army-dark'"
+                  class="flex items-center gap-1.5 px-3 py-1.5 rounded text-xs font-bold uppercase tracking-wider transition-colors">
+            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+            How to use
+          </button>
+          <button @click="toggleTheme"
+                  class="p-2 rounded text-gray-500 dark:text-gray-400 hover:text-army-gold dark:hover:text-army-gold border border-army-tan-dark dark:border-army-dark hover:border-army-gold dark:hover:border-army-gold transition-colors"
+                  :title="isDark ? 'Switch to light mode' : 'Switch to dark mode'">
+            <svg v-if="isDark" class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364-6.364l-.707.707M6.343 17.657l-.707.707M17.657 17.657l.707.707M6.343 6.343l-.707.707M12 5a7 7 0 100 14A7 7 0 0012 5z" />
+            </svg>
+            <svg v-else class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
+            </svg>
+          </button>
+        </div>
+      </div>
+    </header>
+
+    <!-- Instructions panel -->
+    <div v-if="showInstructions" class="border-b border-army-tan-dark dark:border-army-dark bg-army-tan-dark/40 dark:bg-army-dark">
+      <div class="max-w-3xl mx-auto px-4 py-5 space-y-3">
+        <p class="text-xs font-bold uppercase tracking-widest text-army-gold">How to use this tool</p>
+        <ol class="space-y-2 text-sm text-gray-700 dark:text-gray-300 list-decimal list-inside">
+          <li>Have your Soldiers fill out an Excel sheet: <span class="font-semibold">Rank, First Name, Last Name, Company, Battalion, Brigade, Division</span></li>
+          <li>Photograph them <strong>in the same order</strong> as the roster — JPEG preferred, RAW supported but slower</li>
+          <li>Export the Excel sheet as a <strong>.csv</strong> file</li>
+          <li>Select the photo folder (Step 1), upload the CSV (Step 2), pick filename columns (Step 3)</li>
+          <li>Review the preview — photos are sorted by EXIF capture time and matched to roster rows in order</li>
+          <li>Click <strong>Copy and Rename</strong> — originals are never deleted</li>
+        </ol>
+        <div class="text-xs font-medium text-gray-700 dark:text-gray-400 bg-army-gold/10 border border-army-gold/30 rounded px-3 py-2">
+          <strong class="text-army-gold">Count mismatch?</strong> Ensure photos and roster rows are equal in count and in the same order.
+        </div>
       </div>
     </div>
 
-    <div class="space-y-6">
-      <!-- Status Display -->
-      <div v-if="status" 
-           :class="['p-4 rounded', 
-                    status.includes('Error') ? 'bg-red-100' : 'bg-blue-100']">
+    <!-- Main -->
+    <main class="max-w-3xl mx-auto px-4 py-8 space-y-4">
+
+      <!-- Status banner -->
+      <div v-if="status"
+           :class="[
+             'px-4 py-3 rounded text-sm font-medium border',
+             status.toLowerCase().includes('error')
+               ? 'bg-red-50 dark:bg-red-950/30 text-red-700 dark:text-red-400 border-red-300 dark:border-red-800'
+               : 'bg-army-gold/10 text-gray-800 dark:text-gray-200 border-army-gold/40'
+           ]">
         {{ status }}
       </div>
 
-      <!-- RAW Files Warning -->
-      <div v-if="hasRawFiles" 
-           class="p-4 rounded bg-yellow-50 border border-yellow-200">
-        <p class="text-yellow-800">
-          <strong>Note:</strong> RAW files detected. Processing these files may take longer due to their size. 
-          The preview thumbnails for RAW files are generated from embedded previews and may appear different from the final images.
-        </p>
+      <!-- RAW warning -->
+      <div v-if="hasRawFiles"
+           class="px-4 py-3 rounded text-sm border bg-army-gold/10 text-gray-800 dark:text-gray-300 border-army-gold/40">
+        <strong class="text-army-gold">RAW files detected.</strong> Thumbnails use embedded previews and may look different from the final image.
       </div>
 
-      <!-- File Selection -->
-      <div class="space-y-4">
-        <div>
-          <button @click="selectFolder"
-                  class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded"
-                  :disabled="isProcessing">
-            Select Image Folder
+      <!-- Step 1: Select folder -->
+      <div :class="stepCard(images.length > 0)">
+        <div class="flex items-start justify-between mb-4">
+          <div>
+            <p class="text-[10px] font-bold uppercase tracking-widest text-army-gold mb-0.5">Step 1</p>
+            <h2 class="font-bold text-gray-900 dark:text-white">Select Photo Folder</h2>
+          </div>
+          <span v-if="images.length > 0" class="flex items-center gap-1 text-xs font-bold text-army-gold uppercase tracking-wide">
+            <svg class="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 20 20">
+              <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd" />
+            </svg>
+            {{ images.length }} photos
+          </span>
+        </div>
+        <button @click="selectFolder"
+                :disabled="isProcessing"
+                class="inline-flex items-center gap-2 px-4 py-2 bg-army-gold hover:bg-yellow-400 text-army-black text-sm font-bold uppercase tracking-wide rounded transition-colors disabled:opacity-40 disabled:cursor-not-allowed">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 7a2 2 0 012-2h4l2 2h8a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V7z" />
+          </svg>
+          {{ images.length > 0 ? 'Change Folder' : 'Choose Folder' }}
+        </button>
+      </div>
+
+      <!-- Step 2: Upload CSV -->
+      <div :class="stepCard(csvData.length > 0)">
+        <div class="flex items-start justify-between mb-4">
+          <div>
+            <p class="text-[10px] font-bold uppercase tracking-widest text-army-gold mb-0.5">Step 2</p>
+            <h2 class="font-bold text-gray-900 dark:text-white">Upload Roster</h2>
+          </div>
+          <span v-if="csvData.length > 0" class="flex items-center gap-1 text-xs font-bold text-army-gold uppercase tracking-wide">
+            <svg class="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 20 20">
+              <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd" />
+            </svg>
+            {{ csvData.length }} rows
+          </span>
+        </div>
+        <div class="flex flex-wrap gap-3">
+          <label class="inline-flex items-center gap-2 px-4 py-2 bg-army-gold hover:bg-yellow-400 text-army-black text-sm font-bold uppercase tracking-wide rounded transition-colors cursor-pointer">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+            </svg>
+            {{ csvData.length > 0 ? 'Change CSV' : 'Choose CSV' }}
+            <input type="file" accept=".csv" class="sr-only" @change="handleCSVUpload" :disabled="isProcessing" />
+          </label>
+          <button @click="downloadTemplate"
+                  class="inline-flex items-center gap-2 px-4 py-2 border border-army-tan-dark dark:border-army-dark text-gray-600 dark:text-gray-400 hover:border-army-gold hover:text-army-gold dark:hover:border-army-gold dark:hover:text-army-gold text-sm font-bold uppercase tracking-wide rounded transition-colors">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+            </svg>
+            Template
           </button>
-          <span class="ml-2 text-sm text-gray-600">
-            {{ images.length }} images selected
+        </div>
+      </div>
+
+      <!-- Step 3: Build filename -->
+      <div v-if="csvData.length > 0" :class="stepCard(selectedColumns.length > 0)">
+        <div class="flex items-start justify-between mb-4">
+          <div>
+            <p class="text-[10px] font-bold uppercase tracking-widest text-army-gold mb-0.5">Step 3</p>
+            <h2 class="font-bold text-gray-900 dark:text-white">Build Filename</h2>
+            <p class="text-xs text-gray-500 dark:text-gray-400 mt-0.5">Select columns in the order you want them</p>
+          </div>
+          <span v-if="selectedColumns.length > 0" class="flex items-center gap-1 text-xs font-bold text-army-gold uppercase tracking-wide">
+            <svg class="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 20 20">
+              <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd" />
+            </svg>
+            Ready
           </span>
         </div>
 
-        <div>
-          <input type="file"
-                 accept=".csv"
-                 @change="handleCSVUpload"
-                 :disabled="isProcessing"
-                 class="block w-full text-sm text-gray-500 
-                        file:mr-4 file:py-2 file:px-4 file:rounded file:border-0 
-                        file:text-sm file:font-semibold file:bg-blue-50 
-                        file:text-blue-700 hover:file:bg-blue-100" />
-        </div>
-      </div>
-
-      <!-- CSV Column Selection -->
-      <div v-if="csvData.length" class="space-y-3">
-        <div>
-          <label class="block text-sm font-medium text-gray-700 mb-1">
-            Select columns to build filename <span class="text-gray-400 font-normal">(check in the order you want them)</span>
-          </label>
-          <div class="border border-gray-200 rounded-md p-3 space-y-1 bg-white">
-            <label v-for="column in csvColumns"
-                   :key="column"
-                   class="flex items-center gap-2 cursor-pointer hover:bg-gray-50 px-1 py-0.5 rounded">
-              <input type="checkbox"
-                     :value="column"
-                     :checked="selectedColumns.includes(column)"
-                     @change="toggleColumn(column)"
-                     class="rounded border-gray-300 text-blue-600 focus:ring-blue-500" />
-              <span class="text-sm text-gray-700">{{ column }}</span>
-            </label>
-          </div>
+        <!-- Column pills -->
+        <div class="flex flex-wrap gap-2 mb-4">
+          <button v-for="column in csvColumns" :key="column"
+                  @click="toggleColumn(column)"
+                  :class="[
+                    'flex items-center gap-1.5 px-3 py-1.5 rounded text-xs font-bold uppercase tracking-wide border transition-colors',
+                    selectedColumns.includes(column)
+                      ? 'bg-army-gold text-army-black border-army-gold'
+                      : 'bg-transparent text-gray-600 dark:text-gray-400 border-army-tan-dark dark:border-army-dark hover:border-army-gold hover:text-army-gold dark:hover:border-army-gold dark:hover:text-army-gold'
+                  ]">
+            <span v-if="selectedColumns.includes(column)"
+                  class="w-4 h-4 rounded-full bg-army-black/20 text-army-black flex items-center justify-center text-[10px] font-black flex-shrink-0">
+              {{ selectedColumns.indexOf(column) + 1 }}
+            </span>
+            {{ column }}
+          </button>
         </div>
 
-        <div class="flex items-center gap-3">
-          <label class="text-sm font-medium text-gray-700 whitespace-nowrap">Separator</label>
+        <!-- Separator -->
+        <div class="flex items-center gap-3 mb-4">
+          <label class="text-xs font-bold uppercase tracking-wide text-gray-500 dark:text-gray-400">Separator</label>
           <input type="text"
                  v-model="columnSeparator"
                  @input="updatePreviewNames"
                  maxlength="5"
-                 class="w-20 rounded-md border-gray-300 shadow-sm text-sm text-center
-                        focus:border-blue-500 focus:ring-blue-500" />
+                 class="w-14 px-2 py-1 rounded border border-army-tan-dark dark:border-army-tan-dark bg-white dark:bg-army-dark text-center text-sm font-mono focus:outline-none focus:border-army-gold text-gray-900 dark:text-gray-100" />
         </div>
 
-        <div v-if="selectedColumns.length" class="text-sm bg-blue-50 border border-blue-100 rounded-md px-3 py-2">
-          <span class="text-gray-500">Pattern: </span>
-          <span class="font-mono text-blue-700">{{ selectedColumns.join(` ${columnSeparator} `) }}</span>
-          <span v-if="csvData[0]" class="text-gray-400"> &rarr; </span>
-          <span v-if="csvData[0]" class="font-mono text-green-700">{{ exampleName }}</span>
+        <!-- Pattern preview -->
+        <div v-if="selectedColumns.length > 0"
+             class="px-3 py-2 rounded border border-army-gold/30 bg-army-gold/5 text-sm font-mono">
+          <span class="text-gray-400 dark:text-gray-500">{{ selectedColumns.join(` ${columnSeparator} `) }} → </span>
+          <span class="text-army-gold font-semibold">{{ exampleName }}</span>
         </div>
       </div>
 
-      <!-- Rename Button -->
-      <div class="space-x-4">
-        <button @click="handleRename"
-                :disabled="!canRename || isProcessing"
-                class="bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded
-                       disabled:bg-gray-300 disabled:cursor-not-allowed">
-          {{ isProcessing ? 'Processing...' : 'Copy and Rename Images' }}
-        </button>
+      <!-- Count mismatch -->
+      <div v-if="images.length > 0 && csvData.length > 0 && images.length !== csvData.length"
+           class="flex items-center gap-2 px-4 py-3 rounded text-sm border bg-army-gold/10 text-gray-800 dark:text-gray-300 border-army-gold/40">
+        <svg class="w-4 h-4 flex-shrink-0 text-army-gold" fill="currentColor" viewBox="0 0 20 20">
+          <path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd" />
+        </svg>
+        <span><strong class="text-army-gold">Count mismatch:</strong> {{ images.length }} photos vs {{ csvData.length }} roster rows — extra items will be skipped.</span>
       </div>
 
-      <!-- Progress Bar -->
-      <div v-if="progress.total > 0" class="space-y-1">
-        <div class="flex justify-between text-sm text-gray-600">
+      <!-- Action button -->
+      <button @click="handleRename"
+              :disabled="!canRename || isProcessing"
+              class="w-full py-3 rounded font-black text-sm uppercase tracking-widest transition-colors
+                     bg-army-gold hover:bg-yellow-400 text-army-black
+                     disabled:opacity-30 disabled:cursor-not-allowed">
+        {{ isProcessing ? 'Processing…' : 'Copy and Rename Images' }}
+      </button>
+
+      <!-- Progress bar -->
+      <div v-if="progress.total > 0" class="space-y-1.5">
+        <div class="flex justify-between text-xs font-medium text-gray-500 dark:text-gray-400">
           <span>{{ progress.label }}</span>
           <span>{{ progress.current }} / {{ progress.total }}</span>
         </div>
-        <div class="w-full bg-gray-200 rounded-full h-2.5">
-          <div class="bg-blue-500 h-2.5 rounded-full transition-all duration-150"
+        <div class="w-full h-2 bg-army-tan-dark dark:bg-army-dark rounded-full overflow-hidden">
+          <div class="h-full bg-army-gold rounded-full transition-all duration-150"
                :style="{ width: `${Math.round((progress.current / progress.total) * 100)}%` }">
           </div>
         </div>
       </div>
 
-      <!-- Image Preview -->
-      <div v-if="images.length" 
-           class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-        <div v-for="(image, index) in images"
-             :key="index"
-             class="space-y-2">
-          <div class="aspect-square relative rounded overflow-hidden bg-gray-100">
+    </main>
+
+    <!-- Full-width photo grid -->
+    <section v-if="images.length > 0" class="px-6 pb-10">
+      <p class="text-[10px] font-bold uppercase tracking-widest text-army-gold mb-3 max-w-3xl mx-auto pl-0">
+        Preview — {{ images.length }} photos
+      </p>
+      <div class="grid grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-3">
+        <div v-for="(image, index) in images" :key="index">
+          <div class="aspect-[3/4] relative rounded overflow-hidden bg-army-tan-dark dark:bg-army-dark">
             <img v-if="image.thumbnail"
                  :src="image.thumbnail"
                  class="object-cover w-full h-full"
                  :alt="image.file.name" />
-            <div v-else
-                 class="flex items-center justify-center w-full h-full text-gray-400">
-              Loading...
+            <div v-else class="flex items-center justify-center w-full h-full text-xs text-gray-400">
+              Loading…
             </div>
-            <div class="absolute bottom-0 left-0 right-0 bg-black bg-opacity-50 
-                        text-white text-xs p-1">
-              <div class="truncate">
-                Current: {{ image.file.name }}
-                <span v-if="image.isRaw" 
-                      class="ml-1 px-1 py-0.5 bg-yellow-500 text-black rounded-sm text-xs">
-                  RAW
-                </span>
+            <div class="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/85 to-transparent px-2 pt-8 pb-2">
+              <div class="flex items-center gap-1 truncate mb-0.5">
+                <span v-if="image.isRaw"
+                      class="flex-shrink-0 text-[9px] font-black px-1 py-px bg-army-gold text-army-black rounded-sm">RAW</span>
+                <span class="text-xs text-white/70 truncate">{{ image.file.name }}</span>
               </div>
-              <div v-if="image.newName" class="truncate text-green-300">
-                New: {{ image.newName }}
+              <div v-if="image.newName" class="text-xs text-army-gold font-bold truncate">
+                → {{ image.newName }}
               </div>
             </div>
           </div>
-          <div class="text-xs text-gray-500">
-            Taken: {{ image.dateTime.toLocaleString() }}
-          </div>
+          <p class="mt-1 text-[10px] text-gray-400 dark:text-gray-500 truncate px-0.5">
+            {{ image.dateTime.toLocaleString() }}
+          </p>
         </div>
       </div>
-    </div>
+    </section>
+
   </div>
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import Papa from 'papaparse'
 import { useFileSystem } from '../composables/useFileSystem'
 
@@ -192,20 +268,49 @@ const {
   selectFolder,
   parseCSV,
   renameImages,
-  updatePreviewNames
+  updatePreviewNames,
 } = useFileSystem()
 
+// --- Dark mode ---
+const isDark = ref(false)
+
+const toggleTheme = () => {
+  isDark.value = !isDark.value
+  document.documentElement.classList.toggle('dark', isDark.value)
+  localStorage.setItem('theme', isDark.value ? 'dark' : 'light')
+}
+
+onMounted(() => {
+  const saved = localStorage.getItem('theme')
+  isDark.value = saved ? saved === 'dark' : window.matchMedia('(prefers-color-scheme: dark)').matches
+  document.documentElement.classList.toggle('dark', isDark.value)
+})
+
+// --- Instructions toggle ---
+const showInstructions = ref(false)
+
+// --- Step card class ---
+const stepCard = (complete: boolean) =>
+  [
+    'bg-white/60 dark:bg-army-dark rounded p-5 border-l-4',
+    'border border-army-tan-dark dark:border-army-dark border-l-army-gold',
+    complete ? 'border-l-army-gold' : 'border-l-gray-300 dark:border-l-gray-700',
+  ].join(' ')
+
+// --- CSV columns ---
 const csvColumns = computed(() => {
   if (!csvData.value?.length) return []
   return Object.keys(csvData.value[0] || {})
 })
 
-const canRename = computed(() => {
-  return images.value.length > 0 &&
-         csvData.value.length > 0 &&
-         selectedColumns.value.length > 0
-})
+// --- Can rename ---
+const canRename = computed(() =>
+  images.value.length > 0 &&
+  csvData.value.length > 0 &&
+  selectedColumns.value.length > 0
+)
 
+// --- Example filename ---
 const exampleName = computed(() => {
   const row = csvData.value[0]
   if (!row || !selectedColumns.value.length) return ''
@@ -215,31 +320,30 @@ const exampleName = computed(() => {
     .join(columnSeparator.value)
 })
 
+// --- Column toggle ---
 const toggleColumn = (column: string) => {
   const idx = selectedColumns.value.indexOf(column)
-  if (idx === -1) {
-    selectedColumns.value = [...selectedColumns.value, column]
-  } else {
-    selectedColumns.value = selectedColumns.value.filter(c => c !== column)
-  }
+  selectedColumns.value = idx === -1
+    ? [...selectedColumns.value, column]
+    : selectedColumns.value.filter(c => c !== column)
   updatePreviewNames()
 }
 
+// --- CSV upload ---
 const handleCSVUpload = async (event: Event) => {
   const file = (event.target as HTMLInputElement).files?.[0]
-  if (file) {
-    try {
-      await parseCSV(file)
-      selectedColumns.value = []
-    } catch (error) {
-      console.error('CSV upload error:', error)
-    }
+  if (!file) return
+  try {
+    await parseCSV(file)
+    selectedColumns.value = []
+  } catch (error) {
+    console.error('CSV upload error:', error)
   }
 }
 
+// --- Rename ---
 const handleRename = async () => {
   if (!canRename.value) return
-  
   try {
     await renameImages()
   } catch (error) {
@@ -247,28 +351,21 @@ const handleRename = async () => {
   }
 }
 
+// --- Template download ---
 const downloadTemplate = () => {
-  // Create template data
   const templateData = [
-    { Rank: "SPC", "First Name": "John",  "Last Name": "Doe",    Company: "HHC", Battalion: "1-2", Brigade: "1ABCT", Division: "1ID" },
-    { Rank: "SGT", "First Name": "Jane",  "Last Name": "Smith",  Company: "A",   Battalion: "2-3", Brigade: "2ABCT", Division: "1ID" },
-    { Rank: "CPT", "First Name": "James", "Last Name": "Brown",  Company: "B",   Battalion: "1-4", Brigade: "1ABCT", Division: "2ID" },
-    { Rank: "PFC", "First Name": "Maria", "Last Name": "Garcia", Company: "C",   Battalion: "3-1", Brigade: "3ABCT", Division: "1ID" },
-    { Rank: "SSG", "First Name": "Lee",   "Last Name": "Kim",    Company: "HHC", Battalion: "2-2", Brigade: "2ABCT", Division: "4ID" }
+    { Rank: 'SPC', 'First Name': 'John',  'Last Name': 'Doe',    Company: 'HHC', Battalion: '1-2', Brigade: '1ABCT', Division: '1ID' },
+    { Rank: 'SGT', 'First Name': 'Jane',  'Last Name': 'Smith',  Company: 'A',   Battalion: '2-3', Brigade: '2ABCT', Division: '1ID' },
+    { Rank: 'CPT', 'First Name': 'James', 'Last Name': 'Brown',  Company: 'B',   Battalion: '1-4', Brigade: '1ABCT', Division: '2ID' },
+    { Rank: 'PFC', 'First Name': 'Maria', 'Last Name': 'Garcia', Company: 'C',   Battalion: '3-1', Brigade: '3ABCT', Division: '1ID' },
+    { Rank: 'SSG', 'First Name': 'Lee',   'Last Name': 'Kim',    Company: 'HHC', Battalion: '2-2', Brigade: '2ABCT', Division: '4ID' },
   ]
-
-  // Convert to CSV
   const csv = Papa.unparse(templateData)
-  
-  // Create blob and download
   const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' })
-  const link = document.createElement('a')
   const url = URL.createObjectURL(blob)
-  
-  link.setAttribute('href', url)
-  link.setAttribute('download', 'hero_photos_template.csv')
-  link.style.visibility = 'hidden'
-  
+  const link = document.createElement('a')
+  link.href = url
+  link.download = 'hero_photos_template.csv'
   document.body.appendChild(link)
   link.click()
   document.body.removeChild(link)

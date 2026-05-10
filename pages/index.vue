@@ -9,7 +9,7 @@
           <svg class="w-7 h-7 text-army-gold flex-shrink-0" viewBox="0 0 24 24" fill="currentColor">
             <path d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4zm0 4l5 2.18V11c0 3.5-2.33 6.79-5 7.93-2.67-1.14-5-4.43-5-7.93V7.18L12 5zm0 2l-3 1.35V11c0 2.1 1.4 4.07 3 4.76 1.6-.69 3-2.66 3-4.76V8.35L12 7z"/>
           </svg>
-          <span class="text-base font-bold tracking-wide uppercase">Image Rename</span>
+          <span class="text-base font-bold tracking-wide uppercase">Bulk Image Rename</span>
         </div>
         <div class="flex items-center gap-2">
           <a href="https://buymeacoffee.com/jameslarimer"

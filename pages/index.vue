@@ -12,6 +12,19 @@
           <span class="text-base font-bold tracking-wide uppercase">Image Rename</span>
         </div>
         <div class="flex items-center gap-2">
+          <a href="https://buymeacoffee.com/jameslarimer"
+             target="_blank"
+             rel="noopener noreferrer"
+             class="flex items-center gap-1.5 px-3 py-1.5 rounded text-xs font-bold uppercase tracking-wider border border-army-tan-dark dark:border-army-dark text-gray-600 dark:text-gray-400 hover:border-army-gold hover:text-army-gold dark:hover:border-army-gold dark:hover:text-army-gold transition-colors">
+            <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M17 8h1a4 4 0 0 1 0 8h-1"/>
+              <path d="M3 8h14v9a4 4 0 0 1-4 4H7a4 4 0 0 1-4-4Z"/>
+              <line x1="6" y1="2" x2="6" y2="4"/>
+              <line x1="10" y1="2" x2="10" y2="4"/>
+              <line x1="14" y1="2" x2="14" y2="4"/>
+            </svg>
+            Support my work
+          </a>
           <button @click="showInstructions = !showInstructions"
                   :class="showInstructions
                     ? 'bg-army-gold text-army-black'

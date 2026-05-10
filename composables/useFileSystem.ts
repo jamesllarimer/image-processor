@@ -1,11 +1,16 @@
 // composables/useFileSystem.ts
-import { ref, computed } from 'vue'
+import { ref } from 'vue'
 import Papa from 'papaparse'
-import { parse as parseExif } from 'exifr'
+import { parse as parseExif, thumbnail as extractThumbnail } from 'exifr'
+
 
 declare global {
   interface Window {
     showDirectoryPicker(): Promise<FileSystemDirectoryHandle>
+  }
+
+  interface FileSystemHandle {
+    requestPermission(descriptor?: { mode?: 'read' | 'readwrite' }): Promise<PermissionState>
   }
 
   interface FileSystemDirectoryHandle extends FileSystemHandle {
@@ -28,36 +33,34 @@ interface ImageWithMetadata {
   isRaw?: boolean
 }
 
-// Add supported RAW formats
 const SUPPORTED_FORMATS = new Set([
-  // Common image formats
   'image/jpeg',
   'image/png',
   'image/webp',
-  // RAW formats
-  'image/arw',              // Sony
-  'image/x-sony-arw',       // Alternative MIME for Sony
-  'image/cr2',              // Canon
-  'image/x-canon-cr2',      // Alternative MIME for Canon
-  'image/nef',              // Nikon
-  'image/x-nikon-nef',      // Alternative MIME for Nikon
-  'image/raf',              // Fujifilm
-  'image/x-fuji-raf',       // Alternative MIME for Fujifilm
-  'image/raw',              // Generic RAW
-  'image/x-raw'             // Alternative MIME for generic RAW
+  'image/arw',
+  'image/x-sony-arw',
+  'image/cr2',
+  'image/x-canon-cr2',
+  'image/nef',
+  'image/x-nikon-nef',
+  'image/raf',
+  'image/x-fuji-raf',
+  'image/raw',
+  'image/x-raw',
 ])
 
-// Add RAW file extensions
 const RAW_EXTENSIONS = new Set([
-  'arw',  // Sony
-  'cr2',  // Canon
-  'nef',  // Nikon
-  'raf',  // Fujifilm
-  'raw',  // Generic
-  'rw2',  // Panasonic
-  'orf',  // Olympus
-  'dng'   // Adobe Digital Negative
+  'arw', 'cr2', 'nef', 'raf', 'raw', 'rw2', 'orf', 'dng',
 ])
+
+const sanitizeFilename = (name: string): string =>
+  name
+    .replace(/[/\\:*?"<>|]/g, '-')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .replace(/^\.+/, '')
+
+// --- Composable ---
 
 export const useFileSystem = () => {
   const images = ref<ImageWithMetadata[]>([])
@@ -66,30 +69,24 @@ export const useFileSystem = () => {
   const csvData = ref<any[]>([])
   const status = ref('')
   const isProcessing = ref(false)
-  const selectedColumn = ref('')
+  const progress = ref({ current: 0, total: 0, label: '' })
+  const selectedColumns = ref<string[]>([])
+  const columnSeparator = ref('_')
   const hasRawFiles = ref(false)
+  const isOffline = ref(!navigator.onLine)
+
+  window.addEventListener('online', () => { isOffline.value = false })
+  window.addEventListener('offline', () => { isOffline.value = true })
 
   const isImageFile = (file: File): { isSupported: boolean; isRaw: boolean } => {
-    // Check by MIME type first
     if (SUPPORTED_FORMATS.has(file.type)) {
-      return { 
-        isSupported: true, 
-        isRaw: file.type.includes('raw') || file.type.includes('arw') || 
-               file.type.includes('cr2') || file.type.includes('nef') || 
-               file.type.includes('raf')
-      }
+      const isRaw = file.type.includes('raw') || file.type.includes('arw') ||
+                    file.type.includes('cr2') || file.type.includes('nef') ||
+                    file.type.includes('raf')
+      return { isSupported: true, isRaw }
     }
-    
-    // If MIME type check fails, check by extension
-    const extension = file.name.split('.').pop()?.toLowerCase()
-    if (extension) {
-      const isRaw = RAW_EXTENSIONS.has(extension)
-      return {
-        isSupported: isRaw,
-        isRaw
-      }
-    }
-    
+    const ext = file.name.split('.').pop()?.toLowerCase()
+    if (ext && RAW_EXTENSIONS.has(ext)) return { isSupported: true, isRaw: true }
     return { isSupported: false, isRaw: false }
   }
 
@@ -97,133 +94,62 @@ export const useFileSystem = () => {
     const canvas = document.createElement('canvas')
     canvas.width = 400
     canvas.height = 400
-    
     const ctx = canvas.getContext('2d')
     if (!ctx) return ''
-    
-    // Draw placeholder background
     ctx.fillStyle = '#f3f4f6'
     ctx.fillRect(0, 0, canvas.width, canvas.height)
-    
-    // Draw RAW text
     ctx.fillStyle = '#9ca3af'
     ctx.font = 'bold 24px system-ui'
     ctx.textAlign = 'center'
     ctx.textBaseline = 'middle'
     ctx.fillText('RAW', canvas.width / 2, canvas.height / 2 - 20)
-    
-    // Draw filename
     ctx.font = '16px system-ui'
     ctx.fillText(filename, canvas.width / 2, canvas.height / 2 + 20)
-    
     return canvas.toDataURL('image/webp', 0.8)
   }
 
   const createImageThumbnail = async (file: File, isRaw: boolean): Promise<string> => {
+    const maxDimension = 400
     try {
-      const maxDimension = 400
-      
       if (isRaw) {
         try {
-          // Use exifr to extract the embedded preview JPEG
-          const exifData = await parseExif(file, {
-            thumbnail: true,
-            imageWidth: true,
-            imageHeight: true,
-          })
-          
-          if (exifData?.thumbnail) {
-            // Convert the thumbnail buffer to a blob
-            const blob = new Blob([exifData.thumbnail], { type: 'image/jpeg' })
+          const thumbnailData = await extractThumbnail(file)
+          if (thumbnailData) {
+            const blob = new Blob([thumbnailData as BlobPart], { type: 'image/jpeg' })
             const url = URL.createObjectURL(blob)
-            
             const img = document.createElement('img')
-            await new Promise((resolve, reject) => {
-              img.onload = resolve
-              img.onerror = reject
-              img.src = url
-            })
-            
+            await new Promise((resolve, reject) => { img.onload = resolve; img.onerror = reject; img.src = url })
             URL.revokeObjectURL(url)
-            
-            // Resize the thumbnail
-            let width = img.width
-            let height = img.height
-            if (width > height) {
-              if (width > maxDimension) {
-                height = height * (maxDimension / width)
-                width = maxDimension
-              }
-            } else {
-              if (height > maxDimension) {
-                width = width * (maxDimension / height)
-                height = maxDimension
-              }
-            }
-            
+            let { width, height } = img
+            if (width > height) { if (width > maxDimension) { height = height * (maxDimension / width); width = maxDimension } }
+            else { if (height > maxDimension) { width = width * (maxDimension / height); height = maxDimension } }
             const canvas = document.createElement('canvas')
-            canvas.width = width
-            canvas.height = height
-            
-            const ctx = canvas.getContext('2d')
-            if (!ctx) throw new Error('Could not get canvas context')
-            
-            ctx.imageSmoothingEnabled = true
-            ctx.imageSmoothingQuality = 'high'
-            
+            canvas.width = width; canvas.height = height
+            const ctx = canvas.getContext('2d')!
+            ctx.imageSmoothingEnabled = true; ctx.imageSmoothingQuality = 'high'
             ctx.drawImage(img, 0, 0, width, height)
-            
             return canvas.toDataURL('image/webp', 0.8)
           }
-        } catch (error) {
-          console.error('Error extracting RAW preview:', error)
+        } catch {
+          // fall through to placeholder
         }
-        
-        // If we get here, either no thumbnail was found or extraction failed
         return generatePlaceholderThumbnail(file.name)
       }
-      
-      // Handle non-RAW images
+
       const url = URL.createObjectURL(file)
-      
       const img = document.createElement('img')
-      await new Promise((resolve, reject) => {
-        img.onload = resolve
-        img.onerror = reject
-        img.src = url
-      })
-      
+      await new Promise((resolve, reject) => { img.onload = resolve; img.onerror = reject; img.src = url })
       URL.revokeObjectURL(url)
-      
-      let width = img.width
-      let height = img.height
-      if (width > height) {
-        if (width > maxDimension) {
-          height = height * (maxDimension / width)
-          width = maxDimension
-        }
-      } else {
-        if (height > maxDimension) {
-          width = width * (maxDimension / height)
-          height = maxDimension
-        }
-      }
-      
+      let { width, height } = img
+      if (width > height) { if (width > maxDimension) { height = height * (maxDimension / width); width = maxDimension } }
+      else { if (height > maxDimension) { width = width * (maxDimension / height); height = maxDimension } }
       const canvas = document.createElement('canvas')
-      canvas.width = width
-      canvas.height = height
-      
-      const ctx = canvas.getContext('2d')
-      if (!ctx) throw new Error('Could not get canvas context')
-      
-      ctx.imageSmoothingEnabled = true
-      ctx.imageSmoothingQuality = 'high'
-      
+      canvas.width = width; canvas.height = height
+      const ctx = canvas.getContext('2d')!
+      ctx.imageSmoothingEnabled = true; ctx.imageSmoothingQuality = 'high'
       ctx.drawImage(img, 0, 0, width, height)
-      
       return canvas.toDataURL('image/webp', 0.8)
-    } catch (error) {
-      console.error('Error creating thumbnail:', error)
+    } catch {
       return generatePlaceholderThumbnail(file.name)
     }
   }
@@ -231,18 +157,66 @@ export const useFileSystem = () => {
   const getImageDateTime = async (file: File): Promise<Date> => {
     try {
       const exifData = await parseExif(file, ['DateTimeOriginal', 'CreateDate'])
-      
-      if (exifData?.DateTimeOriginal) {
-        return new Date(exifData.DateTimeOriginal)
-      } else if (exifData?.CreateDate) {
-        return new Date(exifData.CreateDate)
-      }
-      
-      return new Date(file.lastModified)
-    } catch (error) {
-      console.warn('Error reading EXIF data for file:', file.name, error)
-      return new Date(file.lastModified)
+      if (exifData?.DateTimeOriginal) return new Date(exifData.DateTimeOriginal)
+      if (exifData?.CreateDate) return new Date(exifData.CreateDate)
+    } catch {
+      // fall through to lastModified
     }
+    return new Date(file.lastModified)
+  }
+
+  const updatePreviewNames = () => {
+    if (!selectedColumns.value.length || !csvData.value.length) {
+      images.value = images.value.map(img => ({ ...img, newName: undefined }))
+      return
+    }
+    images.value = images.value.map((img, index) => {
+      const csvRow = csvData.value[index]
+      if (!csvRow) return { ...img, newName: undefined }
+      const extension = img.file.name.split('.').pop()?.toLowerCase() || 'jpg'
+      const newBaseName = sanitizeFilename(
+        selectedColumns.value
+          .map(col => (csvRow[col] ?? '').toString().trim())
+          .filter(Boolean)
+          .join(columnSeparator.value)
+      )
+      if (!newBaseName) return { ...img, newName: undefined }
+      return { ...img, newName: `${newBaseName}.${extension}` }
+    })
+  }
+
+  const loadImagesFromHandle = async (handle: FileSystemDirectoryHandle) => {
+    status.value = 'Scanning folder...'
+
+    // First pass: collect files so we know the total before processing
+    const fileList: { file: File; isRaw: boolean }[] = []
+    for await (const [, fileHandle] of handle.entries()) {
+      if (fileHandle.kind === 'file') {
+        const file = await (fileHandle as FileSystemFileHandle).getFile()
+        const { isSupported, isRaw } = isImageFile(file)
+        if (isSupported) fileList.push({ file, isRaw })
+      }
+    }
+
+    progress.value = { current: 0, total: fileList.length, label: 'Loading images...' }
+
+    const imageFiles: ImageWithMetadata[] = []
+    let rawCount = 0
+    for (const { file, isRaw } of fileList) {
+      const [dateTime, thumbnail] = await Promise.all([
+        getImageDateTime(file),
+        createImageThumbnail(file, isRaw),
+      ])
+      if (isRaw) rawCount++
+      imageFiles.push({ file, dateTime, name: file.name, thumbnail, isRaw })
+      progress.value.current++
+    }
+
+    progress.value = { current: 0, total: 0, label: '' }
+    hasRawFiles.value = rawCount > 0
+    images.value = imageFiles.sort((a, b) => a.dateTime.getTime() - b.dateTime.getTime())
+    status.value = `Loaded ${images.value.length} images${rawCount ? ` (${rawCount} RAW)` : ''}, sorted by capture time`
+    updatePreviewNames()
   }
 
   const selectFolder = async () => {
@@ -251,51 +225,17 @@ export const useFileSystem = () => {
         status.value = 'File System Access API not supported in this browser'
         return
       }
-      
       status.value = 'Selecting input folder...'
       const handle = await window.showDirectoryPicker()
       dirHandle.value = handle
-      const imageFiles: ImageWithMetadata[] = []
-      
-      status.value = 'Reading images from folder...'
-      let rawCount = 0
-      
-      for await (const [name, fileHandle] of handle.entries()) {
-        if (fileHandle.kind === 'file') {
-          const file = await (fileHandle as FileSystemFileHandle).getFile()
-          const { isSupported, isRaw } = isImageFile(file)
-          
-          if (isSupported) {
-            if (isRaw) rawCount++
-            console.log('Processing image:', file.name, isRaw ? '(RAW)' : '')
-            
-            const [dateTime, thumbnail] = await Promise.all([
-              getImageDateTime(file),
-              createImageThumbnail(file, isRaw)
-            ])
-            
-            imageFiles.push({
-              file,
-              dateTime,
-              name: file.name,
-              thumbnail,
-              isRaw
-            })
-          }
-        }
-      }
-      
-      hasRawFiles.value = rawCount > 0
-      images.value = imageFiles.sort((a, b) => a.dateTime.getTime() - b.dateTime.getTime())
-      status.value = `Loaded ${images.value.length} images (${rawCount} RAW), sorted by capture time`
-      updatePreviewNames()
+      await loadImagesFromHandle(handle)
     } catch (error) {
       status.value = `Error: ${error instanceof Error ? error.message : 'Unknown error'}`
       console.error('Folder selection error:', error)
     }
   }
 
-  const selectOutputFolder = async () => {
+  const selectOutputFolder = async (): Promise<boolean> => {
     try {
       status.value = 'Selecting output folder...'
       const handle = await window.showDirectoryPicker()
@@ -309,13 +249,13 @@ export const useFileSystem = () => {
     }
   }
 
-  const parseCSV = async (file: File) => {
-    return new Promise((resolve, reject) => {
+  const parseCSV = async (file: File) =>
+    new Promise((resolve, reject) => {
       Papa.parse(file, {
         header: true,
         skipEmptyLines: true,
         complete: (results) => {
-          csvData.value = results.data
+          csvData.value = results.data as any[]
           status.value = `Loaded ${results.data.length} records from CSV`
           updatePreviewNames()
           resolve(results.data)
@@ -323,80 +263,57 @@ export const useFileSystem = () => {
         error: (error) => {
           status.value = `CSV parsing error: ${error}`
           reject(error)
-        }
+        },
       })
     })
-  }
-
-  const updatePreviewNames = () => {
-    if (!selectedColumn.value || !csvData.value.length) {
-      images.value = images.value.map(img => ({ ...img, newName: undefined }))
-      return
-    }
-
-    images.value = images.value.map((img, index) => {
-      const csvRow = csvData.value[index]
-      if (!csvRow || !csvRow[selectedColumn.value]) return { ...img, newName: undefined }
-
-      const extension = img.file.name.split('.').pop()?.toLowerCase() || 'jpg'
-      const newName = `${csvRow[selectedColumn.value]}.${extension}`
-      return { ...img, newName }
-    })
-  }
 
   const renameImages = async () => {
-    if (!dirHandle.value || !csvData.value.length || !images.value.length || !selectedColumn.value) {
+    if (!dirHandle.value || !csvData.value.length || !images.value.length || !selectedColumns.value.length) {
       throw new Error('Please select both folder and CSV first')
     }
-
     if (!outputDirHandle.value) {
       const success = await selectOutputFolder()
       if (!success) return
     }
 
     isProcessing.value = true
+    progress.value = { current: 0, total: images.value.length, label: 'Copying files...' }
     status.value = 'Starting copy and rename process...'
-    
+
     try {
       let successCount = 0
       let errorCount = 0
-      let currentFile = ''
-      
+
       for (const image of images.value) {
         if (!image.newName) {
-          console.warn(`No new name generated for image:`, image.file.name)
           errorCount++
+          progress.value.current++
           continue
         }
-
         try {
           if (outputDirHandle.value) {
-            currentFile = image.file.name
-            status.value = `Processing ${currentFile} -> ${image.newName}`
-            console.log(`Processing ${currentFile} -> ${image.newName}`)
-            
+            status.value = `Processing ${image.file.name} → ${image.newName}`
             const newHandle = await outputDirHandle.value.getFileHandle(image.newName, { create: true })
             const file = await (await dirHandle.value.getFileHandle(image.file.name)).getFile()
-            
             const writer = await newHandle.createWritable()
             await writer.write(await file.arrayBuffer())
             await writer.close()
-            
-            console.log(`Successfully copied and renamed: ${image.newName}`)
             successCount++
           }
         } catch (error) {
-          console.error(`Error processing ${currentFile}:`, error)
+          console.error(`Error processing ${image.file.name}:`, error)
           errorCount++
         }
+        progress.value.current++
       }
 
-      status.value = `Copied and renamed ${successCount} images. ${errorCount} errors.`
+      status.value = `Copied and renamed ${successCount} images. ${errorCount > 0 ? `${errorCount} errors.` : ''}`
     } catch (error) {
       status.value = `Process error: ${error instanceof Error ? error.message : 'Unknown error'}`
       console.error('Process error:', error)
     } finally {
       isProcessing.value = false
+      progress.value = { current: 0, total: 0, label: '' }
     }
   }
 
@@ -405,11 +322,14 @@ export const useFileSystem = () => {
     csvData,
     status,
     isProcessing,
-    selectedColumn,
+    progress,
+    selectedColumns,
+    columnSeparator,
     hasRawFiles,
+    isOffline,
     selectFolder,
     parseCSV,
     renameImages,
-    updatePreviewNames
+    updatePreviewNames,
   }
 }
